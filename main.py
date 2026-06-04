@@ -7,6 +7,7 @@ import yt_dlp
 
 app = FastAPI(title="SK-Downloader Cloud Engine")
 
+# CORS setup critical for mobile apps connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,38 +32,45 @@ def extract_video_url(request: VideoRequest):
     platform = request.platform
     
     if not video_url:
-        raise HTTPException(status_code=400, detail="URL cannot be empty")
+        raise HTTPException(status_code=400, detail="URL khali hai, please link dalein")
         
-    # Advanced extraction rules based on user choice
+    # ANTI-BOT BYPASS: Fake Headers adding to look like a real mobile browser
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
+        'extract_flat': False,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-Fetch-Mode': 'navigate',
+        }
     }
 
+    # Format handling overrides based on user choice
     if pref == "Audio_MP3":
         ydl_opts['format'] = 'bestaudio/best'
     elif pref == "No_Watermark" and platform == "TikTok":
-        # TikTok no watermark dynamic fetch
-        ydl_opts['format'] = 'bestvideo'
+        ydl_opts['format'] = 'bestvideo+bestaudio/best'
     else:
-        ydl_opts['format'] = 'best' # Standard HD Video combine
+        ydl_opts['format'] = 'best/bestvideo+bestaudio'
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             
-            # Streaming link generation
+            # Dynamic URL extraction logic
             direct_url = info.get('url')
             title = info.get('title', f"SK_{platform}_File")
             
-            if not direct_url:
-                # Fallback check if links are nested in formats array
-                formats = info.get('formats', [])
-                if formats:
-                    direct_url = formats[-1].get('url')
+            if not direct_url and 'formats' in info:
+                # Fallback filter if urls are nested deep inside formats array
+                valid_formats = [f for f in info['formats'] if f.get('url')]
+                if valid_formats:
+                    direct_url = valid_formats[-1]['url']
             
             if not direct_url:
-                raise HTTPException(status_code=404, detail="Could not extract direct media link")
+                raise HTTPException(status_code=404, detail="Direct streaming link nahi mil saka")
                 
             return {
                 "success": True,
@@ -71,7 +79,8 @@ def extract_video_url(request: VideoRequest):
             }
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"SK-Engine extraction failed: {str(e)}")
+        # Detailed error forward to Flutter UI for easy debugging
+        raise HTTPException(status_code=500, detail=f"yt-dlp Engine Alert: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
