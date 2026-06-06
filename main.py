@@ -49,25 +49,29 @@ def extract_video_url(request: VideoRequest):
     if os.path.exists("cookies.txt"):
         ydl_opts['cookiefile'] = 'cookies.txt'
 
-    # FIXED: Flexible format selection strictly avoiding "format not available" error
+    # PERMANENT ULTRA-FLEXIBLE FORMAT SELECTION
     if pref == "Audio_MP3":
         ydl_opts['format'] = 'bestaudio/best'
     elif pref == "No_Watermark" and platform == "TikTok":
-        ydl_opts['format'] = 'best/bestvideo'
+        ydl_opts['format'] = 'best'
     else:
-        # Phele best video, warna single stream link, warna fallback standard format
-        ydl_opts['format'] = 'bestvideo+bestaudio/best/bestvideo'
+        # Sabse behtar format dhoondo, agar audio/video merge na ho sake to single best stream uthao bina error diye
+        ydl_opts['format'] = 'best/bestvideo+bestaudio'
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
+            
+            # Phele direct single-url streaming link check karein
             direct_url = info.get('url')
             title = info.get('title', f"SK_{platform}_File")
             
+            # Fallback array processing agar main object me url na ho
             if not direct_url and 'formats' in info:
+                # Sirf wo formats nikaalein jinki download url valid ho
                 valid_formats = [f for f in info['formats'] if f.get('url')]
                 if valid_formats:
-                    # Sabse highest configured format uthao
+                    # Sabse optimized video direct link extract karein
                     direct_url = valid_formats[-1]['url']
             
             if not direct_url:
