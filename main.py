@@ -8,7 +8,7 @@ import yt_dlp
 
 app = FastAPI(title="SK-Downloader Cloud Engine")
 
-# CORS setup critical for mobile apps connection[cite: 2]
+# CORS setup critical for mobile apps connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,18 +28,18 @@ def home():
 
 @app.post("/extract")
 def extract_video_url(request: VideoRequest):
-    video_url = request.url.strip()[cite: 2]
-    pref = request.format_preference[cite: 2]
-    platform = request.platform[cite: 2]
+    video_url = request.url.strip()
+    pref = request.format_preference
+    platform = request.platform
     
-    if not video_url:[cite: 2]
-        raise HTTPException(status_code=400, detail="URL khali hai, please link dalein")[cite: 2]
+    if not video_url:
+        raise HTTPException(status_code=400, detail="URL khali hai, please link dalein")
         
-    # ANTI-BOT BYPASS: Safe Headers setup[cite: 2]
+    # ANTI-BOT BYPASS: Safe Headers setup
     ydl_opts = {
-        'quiet': True,[cite: 2]
-        'no_warnings': True,[cite: 2]
-        'extract_flat': False,[cite: 2]
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': False,
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -48,44 +48,42 @@ def extract_video_url(request: VideoRequest):
         }
     }
 
-    # CRITICAL INJECTION: Agar repo mein cookies.txt hai toh usey yt-dlp ke opts mein inject karo
+    # CRITICAL INJECTION: Checking for cookies.txt file
     if os.path.exists("cookies.txt"):
         ydl_opts['cookiefile'] = 'cookies.txt'
 
-    # Format handling overrides based on user choice[cite: 2]
-    if pref == "Audio_MP3":[cite: 2]
-        ydl_opts['format'] = 'bestaudio/best'[cite: 2]
-    elif pref == "No_Watermark" and platform == "TikTok":[cite: 2]
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'[cite: 2]
-    else:[cite: 2]
-        ydl_opts['format'] = 'best/bestvideo+bestaudio'[cite: 2]
+    # Format handling overrides based on user choice
+    if pref == "Audio_MP3":
+        ydl_opts['format'] = 'bestaudio/best'
+    elif pref == "No_Watermark" and platform == "TikTok":
+        ydl_opts['format'] = 'bestvideo+bestaudio/best'
+    else:
+        ydl_opts['format'] = 'best/bestvideo+bestaudio'
     
-    try:[cite: 2]
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:[cite: 2]
-            info = ydl.extract_info(video_url, download=False)[cite: 2]
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
             
-            # Dynamic URL extraction logic[cite: 2]
-            direct_url = info.get('url')[cite: 2]
-            title = info.get('title', f"SK_{platform}_File")[cite: 2]
+            # Dynamic URL extraction logic
+            direct_url = info.get('url')
+            title = info.get('title', f"SK_{platform}_File")
             
-            if not direct_url and 'formats' in info:[cite: 2]
-                # Fallback filter if urls are nested deep inside formats array[cite: 2]
-                valid_formats = [f for f in info['formats'] if f.get('url')][cite: 2]
-                if valid_formats:[cite: 2]
-                    direct_url = valid_formats[-1]['url'][cite: 2]
+            if not direct_url and 'formats' in info:
+                valid_formats = [f for f in info['formats'] if f.get('url')]
+                if valid_formats:
+                    direct_url = valid_formats[-1]['url']
             
-            if not direct_url:[cite: 2]
-                raise HTTPException(status_code=404, detail="Direct streaming link nahi mil saka")[cite: 2]
+            if not direct_url:
+                raise HTTPException(status_code=404, detail="Direct streaming link nahi mil saka")
                 
-            return {[cite: 2]
-                "success": True,[cite: 2]
-                "title": title,[cite: 2]
-                "download_url": direct_url[cite: 2]
-            }[cite: 2]
+            return {
+                "success": True,
+                "title": title,
+                "download_url": direct_url
+            }
             
-    except Exception as e:[cite: 2]
-        # Detailed error forward to Flutter UI for easy debugging[cite: 2]
-        raise HTTPException(status_code=500, detail=f"yt-dlp Engine Alert: {str(e)}")[cite: 2]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"yt-dlp Engine Alert: {str(e)}")
 
-if __name__ == "__main__":[cite: 2]
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)[cite: 2]
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
