@@ -8,7 +8,6 @@ import yt_dlp
 
 app = FastAPI(title="SK-Downloader Cloud Engine")
 
-# CORS setup critical for mobile apps connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +34,6 @@ def extract_video_url(request: VideoRequest):
     if not video_url:
         raise HTTPException(status_code=400, detail="URL khali hai, please link dalein")
         
-    # ANTI-BOT BYPASS: Safe Headers setup
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -48,29 +46,28 @@ def extract_video_url(request: VideoRequest):
         }
     }
 
-    # CRITICAL INJECTION: Checking for cookies.txt file
     if os.path.exists("cookies.txt"):
         ydl_opts['cookiefile'] = 'cookies.txt'
 
-    # Format handling overrides based on user choice
+    # FIXED: Flexible format selection strictly avoiding "format not available" error
     if pref == "Audio_MP3":
         ydl_opts['format'] = 'bestaudio/best'
     elif pref == "No_Watermark" and platform == "TikTok":
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'
+        ydl_opts['format'] = 'best/bestvideo'
     else:
-        ydl_opts['format'] = 'best/bestvideo+bestaudio'
+        # Phele best video, warna single stream link, warna fallback standard format
+        ydl_opts['format'] = 'bestvideo+bestaudio/best/bestvideo'
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
-            
-            # Dynamic URL extraction logic
             direct_url = info.get('url')
             title = info.get('title', f"SK_{platform}_File")
             
             if not direct_url and 'formats' in info:
                 valid_formats = [f for f in info['formats'] if f.get('url')]
                 if valid_formats:
+                    # Sabse highest configured format uthao
                     direct_url = valid_formats[-1]['url']
             
             if not direct_url:
