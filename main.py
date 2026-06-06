@@ -23,7 +23,7 @@ class VideoRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "SK-Engine Cloud is Live with Cookies Session, Sher Khan!"}
+    return {"status": "SK-Engine Cloud is Live, Sher Khan!"}
 
 @app.post("/extract")
 def extract_video_url(request: VideoRequest):
@@ -32,50 +32,40 @@ def extract_video_url(request: VideoRequest):
     platform = request.platform
     
     if not video_url:
-        raise HTTPException(status_code=400, detail="URL khali hai, please link dalein")
+        raise HTTPException(status_code=400, detail="URL khali hai")
         
+    # ULTRA SAFE CONFIGURATION: Koi format rule block nahi karega
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'extract_flat': False,
+        'format': 'best',  # PERMANENT RESOLUTION: Direct single best playbaack stream selector
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Sec-Fetch-Mode': 'navigate',
         }
     }
 
-    if os.path.exists("cookies.txt"):
-        ydl_opts['cookiefile'] = 'cookies.txt'
-
-    # PERMANENT ULTRA-FLEXIBLE FORMAT SELECTION
+    # Only override if explicit audio is requested
     if pref == "Audio_MP3":
         ydl_opts['format'] = 'bestaudio/best'
-    elif pref == "No_Watermark" and platform == "TikTok":
-        ydl_opts['format'] = 'best'
-    else:
-        # Sabse behtar format dhoondo, agar audio/video merge na ho sake to single best stream uthao bina error diye
-        ydl_opts['format'] = 'best/bestvideo+bestaudio'
+
+    if os.path.exists("cookies.txt"):
+        ydl_opts['cookiefile'] = 'cookies.txt'
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
-            
-            # Phele direct single-url streaming link check karein
             direct_url = info.get('url')
             title = info.get('title', f"SK_{platform}_File")
             
-            # Fallback array processing agar main object me url na ho
+            # Sub-formats fallback processing
             if not direct_url and 'formats' in info:
-                # Sirf wo formats nikaalein jinki download url valid ho
                 valid_formats = [f for f in info['formats'] if f.get('url')]
                 if valid_formats:
-                    # Sabse optimized video direct link extract karein
                     direct_url = valid_formats[-1]['url']
             
             if not direct_url:
-                raise HTTPException(status_code=404, detail="Direct streaming link nahi mil saka")
+                raise HTTPException(status_code=404, detail="Streaming link nahi mil saka")
                 
             return {
                 "success": True,
@@ -84,7 +74,7 @@ def extract_video_url(request: VideoRequest):
             }
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"yt-dlp Engine Alert: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Engine Alert: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
